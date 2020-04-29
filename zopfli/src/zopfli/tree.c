@@ -27,6 +27,28 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include "katajainen.h"
 #include "util.h"
 
+
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <unistd.h> 
+#include <pthread.h>
+
+
+pthread_mutex_t lock;
+
+struct args {
+    unsigned* symbols;
+	size_t n;
+};
+
+void *initializeSymbols(void *daArgs) { 
+	pthread_mutex_lock(&lock);
+	for (int i = 0; i < ((struct args*)daArgs)->n; i++) {
+	    ((struct args*)daArgs)->symbols[i] = 0;
+	}
+	pthread_mutex_unlock(&lock);
+} 
+
 void ZopfliLengthsToSymbols(const unsigned* lengths, size_t n, unsigned maxbits,
                             unsigned* symbols) {
   size_t* bl_count = (size_t*)malloc(sizeof(size_t) * (maxbits + 1));
@@ -34,9 +56,17 @@ void ZopfliLengthsToSymbols(const unsigned* lengths, size_t n, unsigned maxbits,
   unsigned bits, i;
   unsigned code;
 
-  for (i = 0; i < n; i++) {
-    symbols[i] = 0;
-  }
+ 	struct args *daArgs;
+    daArgs->n = n;
+    daArgs->symbols = &symbols;
+    pthread_t thread1; 
+
+   pthread_create(&thread1, NULL, initializeSymbols, (void *)daArgs);
+
+   //*** Parall
+  // for (i = 0; i < n; i++) {
+  //   symbols[i] = 0;
+  // }
 
   /* 1) Count the number of codes for each code length. Let bl_count[N] be the
   number of codes of length N, N >= 1. */
@@ -54,8 +84,12 @@ void ZopfliLengthsToSymbols(const unsigned* lengths, size_t n, unsigned maxbits,
     code = (code + bl_count[bits-1]) << 1;
     next_code[bits] = code;
   }
+
+
   /* 3) Assign numerical values to all codes, using consecutive values for all
   codes of the same length with the base values determined at step 2. */
+
+  pthread_mutex_lock(&lock);
   for (i = 0;  i < n; i++) {
     unsigned len = lengths[i];
     if (len != 0) {
@@ -63,19 +97,27 @@ void ZopfliLengthsToSymbols(const unsigned* lengths, size_t n, unsigned maxbits,
       next_code[len]++;
     }
   }
+  pthread_mutex_unlock(&lock);
+
 
   free(bl_count);
   free(next_code);
 }
 
+
 void ZopfliCalculateEntropy(const size_t* count, size_t n, double* bitlengths) {
   static const double kInvLog2 = 1.4426950408889;  /* 1.0 / log(2.0) */
+
+	pthread_t thread_id;
+
+
   unsigned sum = 0;
   unsigned i;
   double log2sum;
   for (i = 0; i < n; ++i) {
     sum += count[i];
   }
+
   log2sum = (sum == 0 ? log(n) : log(sum)) * kInvLog2;
   for (i = 0; i < n; ++i) {
     /* When the count of the symbol is 0, but its cost is requested anyway, it
@@ -99,3 +141,5 @@ void ZopfliCalculateBitLengths(const size_t* count, size_t n, int maxbits,
   (void) error;
   assert(!error);
 }
+
+
