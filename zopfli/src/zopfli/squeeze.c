@@ -22,6 +22,7 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#include <pthread.h>
 
 #include "blocksplitter.h"
 #include "deflate.h"
@@ -151,15 +152,53 @@ static double GetCostStat(unsigned litlen, unsigned dist, void* context) {
   }
 }
 
+#define NUM_OF_THREADS 10
+
+pthread_mutex_t lock;
+double mincost_len;
+double mincost_dist;
+int bestlength = 0; /* length that has lowest cost in the cost model */
+int bestdist = 0; /* distance that has lowest cost in the cost model */
+
+struct thread_args {
+    CostModelFun* costmodel;
+    void* costcontext;
+    int start;
+    int end;
+};
+
+void *threadMinCostLength(void *arg)
+{
+  struct thread_args *targs = (struct thread_args*)arg; 
+  double local_mincost = ZOPFLI_LARGE_FLOAT;
+  int local_bestlength = 0; /* length that has lowest cost in the cost model */
+
+  for (int i = targs->start; i < targs->end; i++) {
+    double c = targs->costmodel(i, 1, targs->costcontext);
+    if (c < local_mincost) {
+      local_bestlength = i;
+      local_mincost = c;
+    }
+  }
+  // check if local results are best (safely update global values)
+  pthread_mutex_lock(&lock);
+  if (local_mincost < mincost_len) {
+    bestlength = local_bestlength;
+    mincost_len = local_mincost;
+  }
+  pthread_mutex_unlock(&lock);
+  return NULL;
+}
+
 /*
 Finds the minimum possible cost this cost model can return for valid length and
 distance symbols.
 */
 static double GetCostModelMinCost(CostModelFun* costmodel, void* costcontext) {
-  double mincost;
-  int bestlength = 0; /* length that has lowest cost in the cost model */
-  int bestdist = 0; /* distance that has lowest cost in the cost model */
   int i;
+  int block_size;
+  struct thread_args targs[NUM_OF_THREADS];
+  pthread_t tid[NUM_OF_THREADS];
   /*
   Table of distances that have a different distance symbol in the deflate
   specification. Each value is the first distance that has a new symbol. Only
@@ -171,22 +210,35 @@ static double GetCostModelMinCost(CostModelFun* costmodel, void* costcontext) {
     769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577
   };
 
-  mincost = ZOPFLI_LARGE_FLOAT;
-  for (i = 3; i < 259; i++) {
-    double c = costmodel(i, 1, costcontext);
-    if (c < mincost) {
-      bestlength = i;
-      mincost = c;
+  mincost_len = ZOPFLI_LARGE_FLOAT;
+  bestlength = 0;
+  block_size = (int)(259/NUM_OF_THREADS)+1;  // spread out the loop into threads
+  for (i=0; i<NUM_OF_THREADS; i++) {
+    targs[i].start = 3 + (i*block_size);
+    if (i==NUM_OF_THREADS-1) { 
+      targs[i].end = 259;  // set end for last thread
+    }
+    else { 
+      targs[i].end = targs[i].start + block_size; 
+    }
+    targs[i].costmodel = costmodel;
+    targs[i].costcontext = costcontext;
+    pthread_create(&tid[i], NULL, threadMinCostLength, (void *)&targs[i]);
+  }
+
+  mincost_dist = ZOPFLI_LARGE_FLOAT;
+  bestdist = 0;
+  for (i = 0; i < 30; i++) {
+    double c = costmodel(3, dsymbols[i], costcontext);
+    if (c < mincost_dist) {
+      bestdist = dsymbols[i];
+      mincost_dist = c;
     }
   }
 
-  mincost = ZOPFLI_LARGE_FLOAT;
-  for (i = 0; i < 30; i++) {
-    double c = costmodel(3, dsymbols[i], costcontext);
-    if (c < mincost) {
-      bestdist = dsymbols[i];
-      mincost = c;
-    }
+  // wait for all threads to complete
+  for (i=0; i<NUM_OF_THREADS; i++) {
+    pthread_join(tid[i], NULL);
   }
 
   return costmodel(bestlength, bestdist, costcontext);
@@ -464,6 +516,7 @@ void ZopfliLZ77Optimal(ZopfliBlockState *s,
   int lastrandomstep = -1;
 
   if (!length_array) exit(-1); /* Allocation failed. */
+
 
   InitRanState(&ran_state);
   InitStats(&stats);
