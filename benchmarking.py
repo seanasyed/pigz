@@ -39,29 +39,36 @@ For each algo, we need to collect the following info:
 
 # Compression time
 gzipTime = time.time()
+gzipCompressionRatios = []
 
 for filename in os.listdir(DATA_PATH): 
 	with open(os.path.join(DATA_PATH, filename), 'rb') as f_in: 
 		with gzip.open(os.path.join(DATA_PATH, filename + ".gz"), 'wb') as f_out: 
 			shutil.copyfileobj(f_in, f_out)
+	gzipCompressionRatios.append(os.path.getsize(os.path.join(DATA_PATH, filename)) / os.path.getsize(os.path.join(DATA_PATH, filename + ".gz")))
 
 gzipTime = time.time() - gzipTime
 print("gzip compression took {}s".format(gzipTime))
+print("gzip compression ratios:", gzipCompressionRatios)
 
 for filename in os.listdir(DATA_PATH): 
 	if filename.endswith(".gz"):
 		os.remove(os.path.join(DATA_PATH, filename))
 
-# TODO Benchmark zopfli
+# Benchmark zopfli
 
 #Compression time
 zopfliTime = time.time()
+zopfliCompressionRatios = []
 
 for filename in os.listdir(DATA_PATH): 
-	os.system("./pigz -11 {}".format(os.path.join(DATA_PATH, filename)))
+	os.system("./pigz -k -11 {}".format(os.path.join(DATA_PATH, filename)))
+	zopfliCompressionRatios.append(os.path.getsize(os.path.join(DATA_PATH, filename)) / os.path.getsize(os.path.join(DATA_PATH, filename + ".gz")))
 
 zopfliTime = time.time() - zopfliTime
 print("zopfli compression took {}s".format(zopfliTime))
+
+print("zopfli compression ratios: ", zopfliCompressionRatios)
 
 for filename in os.listdir(DATA_PATH): 
 	if filename.endswith(".gz"):
@@ -71,11 +78,15 @@ for filename in os.listdir(DATA_PATH):
 
 # Compression time
 pigzTime = time.time()
+pigzCompressionRatios = []
+
 for filename in os.listdir(DATA_PATH): 
-	os.system("./pigz {}".format(os.path.join(DATA_PATH, filename)))
+	os.system("./pigz -k {}".format(os.path.join(DATA_PATH, filename)))
+	pigzCompressionRatios.append(os.path.getsize(os.path.join(DATA_PATH, filename)) / os.path.getsize(os.path.join(DATA_PATH, filename + ".gz")))
 
 pigzTime = time.time() - pigzTime
 print("pigz compression took {}s".format(pigzTime))
+print("pigz compression ratios:", pigzCompressionRatios)
 
 for filename in os.listdir(DATA_PATH): 
 	if filename.endswith(".gz"):
