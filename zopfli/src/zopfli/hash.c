@@ -1,18 +1,14 @@
 /*
 Copyright 2011 Google Inc. All Rights Reserved.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
 Author: lode.vandevenne@gmail.com (Lode Vandevenne)
 Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 */
@@ -23,7 +19,6 @@ Author: jyrki.alakuijala@gmail.com (Jyrki Alakuijala)
 #include <stdio.h>
 #include <stdlib.h>
 
-#define HASH_LENGTH 65536
 #define HASH_SHIFT 5
 #define HASH_MASK 32767
 
@@ -31,10 +26,10 @@ void ZopfliInitHash(size_t window_size, ZopfliHash* h) {
   size_t i;
 
   h->val = 0;
-  h->head = (int*)malloc(sizeof(*h->head) * HASH_LENGTH);
+  h->head = (int*)malloc(sizeof(*h->head) * 65536);
   h->prev = (unsigned short*)malloc(sizeof(*h->prev) * window_size);
   h->hashval = (int*)malloc(sizeof(*h->hashval) * window_size);
-  for (i = 0; i < HASH_LENGTH; i++) {
+  for (i = 0; i < 65536; i++) {
     h->head[i] = -1;  /* -1 indicates no head so far. */
   }
   for (i = 0; i < window_size; i++) {
@@ -51,10 +46,10 @@ void ZopfliInitHash(size_t window_size, ZopfliHash* h) {
 
 #ifdef ZOPFLI_HASH_SAME_HASH
   h->val2 = 0;
-  h->head2 = (int*)malloc(sizeof(*h->head2) * HASH_LENGTH);
+  h->head2 = (int*)malloc(sizeof(*h->head2) * 65536);
   h->prev2 = (unsigned short*)malloc(sizeof(*h->prev2) * window_size);
   h->hashval2 = (int*)malloc(sizeof(*h->hashval2) * window_size);
-  for (i = 0; i < HASH_LENGTH; i++) {
+  for (i = 0; i < 65536; i++) {
     h->head2[i] = -1;
   }
   for (i = 0; i < window_size; i++) {
