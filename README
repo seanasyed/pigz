@@ -1,3 +1,14 @@
+USC EE 451 Final Project
+Sean Syed
+Majed Jendi
+Oliver Eisenberg
+Megan Andersen
+
+USAGE:
+To run our benchmarking script, run `python3 benchmarking.py`. Be advised some python packages may require installation. We originally included a virtual environment in this repo to help us test the code, but it made the repo unreasonably large to justify including it in our final commit. 
+
+The benchmarking script will download a smaller dataset of text corpuses to collect metrics for Gzip, Pigz, and the modified Zopfli code included in the repo. Checkout the initial commit of the Zopfli code to run our benchmarking script with the unmodified code if you so choose. 
+
 pigz 2.4 (26 Dec 2017) by Mark Adler
 
 pigz, which stands for Parallel Implementation of GZip, is a fully functional

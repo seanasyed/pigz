@@ -66,9 +66,9 @@ for filename in os.listdir(DATA_PATH):
 	zopfliCompressionRatios.append(os.path.getsize(os.path.join(DATA_PATH, filename)) / os.path.getsize(os.path.join(DATA_PATH, filename + ".gz")))
 
 zopfliTime = time.time() - zopfliTime
-print("zopfli compression took {}s".format(zopfliTime))
+print("zopfli-modified compression took {}s".format(zopfliTime))
 
-print("zopfli compression ratios: ", zopfliCompressionRatios)
+print("zopfli-modified compression ratios: ", zopfliCompressionRatios)
 
 for filename in os.listdir(DATA_PATH): 
 	if filename.endswith(".gz"):
